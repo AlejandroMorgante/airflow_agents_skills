@@ -15,6 +15,9 @@ Se activo proteccion de rama con estas reglas:
 
 Nota: En repos personales GitHub no permite listas de bypass por usuario. Si mas adelante queres exigir aprobacion tambien para admins, activamos `enforce_admins=true`.
 
+## Descripcion del repositorio (GitHub)
+Se seteo la descripcion para indicar que es un desafio tecnico para probar agentes (Codex, Claude y otros).
+
 ## Skill de PRs
 La guia de buenas practicas para PRs vive en:
 - `.codex/skills/pr-best-practices/SKILL.md`

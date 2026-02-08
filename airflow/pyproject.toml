@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "airflow-agents-skills"
+version = "0.1.0"
+description = "Local tooling for dbt and Airflow development"
+authors = ["Alejandro Morgante"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+dbt-postgres = "1.10.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

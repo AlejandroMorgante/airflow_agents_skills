@@ -3,4 +3,4 @@ select
   first_name,
   last_name,
   is_active::boolean as is_active
-from {{ ref('raw_customers') }}
+from {{ source('raw', 'raw_customers') }}

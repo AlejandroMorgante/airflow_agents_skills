@@ -3,10 +3,10 @@ airflow_agents_dbt:
   outputs:
     dev:
       type: postgres
-      host: "{{ env_var('DBT_HOST', 'dbt-postgres') }}"
+      host: "{{ env_var('DBT_HOST', 'localhost') }}"
       user: "{{ env_var('DBT_USER', 'dbt') }}"
       password: "{{ env_var('DBT_PASSWORD', 'dbt') }}"
-      port: "{{ env_var('DBT_PORT', '5432') | int }}"
+      port: "{{ env_var('DBT_PORT', '5433') | int }}"
       dbname: "{{ env_var('DBT_DBNAME', 'dbt') }}"
       schema: "{{ env_var('DBT_SCHEMA', 'analytics') }}"
       threads: 4

@@ -6,6 +6,7 @@ profile: "airflow_agents_dbt"
 
 model-paths: ["models"]
 seed-paths: ["seeds"]
+docs-paths: ["docs"]
 
 target-path: "target"
 clean-targets:

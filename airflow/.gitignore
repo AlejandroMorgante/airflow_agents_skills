@@ -12,4 +12,5 @@ airflow.db
 include/dbt/target/
 include/dbt/logs/
 include/dbt/.user.yml
+include/dbt/notebooks/
 logs/

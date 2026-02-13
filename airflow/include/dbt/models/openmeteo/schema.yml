@@ -1,0 +1,15 @@
+version: 2
+
+sources:
+  - name: openmeteo
+    schema: "{{ env_var('DBT_RAW_SCHEMA', 'raw_openmeteo') }}"
+    tables:
+      - name: openmeteo_hourly
+
+models:
+  - name: openmeteo_hourly
+    description: "Datos horarios de Open-Meteo normalizados para consumo en silver."
+    columns:
+      - name: observed_at
+        tests:
+          - not_null

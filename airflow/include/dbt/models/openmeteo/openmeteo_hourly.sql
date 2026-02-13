@@ -7,4 +7,4 @@ select
   cast(wind_speed_10m as double precision) as wind_speed_10m,
   cast(latitude as double precision) as latitude,
   cast(longitude as double precision) as longitude
-from {{ source('openmeteo', 'openmeteo_hourly') }}
+from {{ source('raw_openmeteo', 'openmeteo_hourly') }}

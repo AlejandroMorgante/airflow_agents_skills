@@ -1,7 +1,7 @@
 version: 2
 
 sources:
-  - name: openmeteo
+  - name: raw_openmeteo
     schema: "{{ env_var('DBT_RAW_SCHEMA', 'raw_openmeteo') }}"
     tables:
       - name: openmeteo_hourly

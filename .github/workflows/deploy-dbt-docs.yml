@@ -1,0 +1,42 @@
+name: Deploy dbt docs to S3
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      BUCKET_NAME: dbt-documentation-snaildoc
+      DOCS_DIR: airflow/include/dbt/target
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required docs files
+        run: |
+          test -f "${DOCS_DIR}/index.html"
+          test -f "${DOCS_DIR}/manifest.json"
+          test -f "${DOCS_DIR}/catalog.json"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Upload docs files to S3
+        run: |
+          aws s3 sync "${DOCS_DIR}" "s3://${BUCKET_NAME}" \
+            --exclude "*" \
+            --include "index.html" \
+            --include "manifest.json" \
+            --include "catalog.json" \
+            --delete

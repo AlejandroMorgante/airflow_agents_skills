@@ -1,0 +1,18 @@
+name: "airflow_agents_dbt"
+version: "1.0.0"
+config-version: 2
+
+profile: "airflow_agents_dbt"
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+docs-paths: ["docs"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  airflow_agents_dbt:
+    +materialized: table

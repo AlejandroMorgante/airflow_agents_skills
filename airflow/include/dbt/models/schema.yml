@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: "{{ env_var('DBT_SCHEMA', 'analytics') }}"
+    tables:
+      - name: raw_customers
+
+models:
+  - name: customer_summary
+    columns:
+      - name: customer_id
+        tests:
+          - not_null

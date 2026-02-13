@@ -4,6 +4,7 @@ from datetime import datetime
 
 import requests
 from airflow import DAG
+from airflow.datasets import Dataset
 from airflow.models import Variable
 from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -11,6 +12,7 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 from psycopg2.extras import execute_values
 
 SQL_DIR = "/usr/local/airflow/include/sql/openmeteo"
+OPENMETEO_RAW_READY = Dataset("airflow_agents://openmeteo/raw_ready")
 
 
 def fetch_and_load() -> None:
@@ -96,6 +98,7 @@ with DAG(
     ingest = PythonOperator(
         task_id="fetch_and_load",
         python_callable=fetch_and_load,
+        outlets=[OPENMETEO_RAW_READY],
     )
 
     create_schema >> create_table >> ingest

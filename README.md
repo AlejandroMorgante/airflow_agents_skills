@@ -53,17 +53,3 @@ make dbt-compile
 make dbt-run
 make dbt-test
 ```
-
-Pre-commit para docs de dbt
----------------------------
-
-Para forzar `dbt docs generate` en cada commit y actualizar/stagear:
-- `airflow/include/dbt/target/index.html`
-- `airflow/include/dbt/target/manifest.json`
-- `airflow/include/dbt/target/catalog.json`
-
-Instalar hooks:
-
-```
-pre-commit install
-```

@@ -17,20 +17,6 @@ permissions:
 jobs:
   dbt-compile:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: dbt
-          POSTGRES_PASSWORD: dbt
-          POSTGRES_DB: dbt
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U dbt -d dbt"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
 
     env:
       DBT_PROJECT_DIR: ${{ github.workspace }}/airflow/include/dbt

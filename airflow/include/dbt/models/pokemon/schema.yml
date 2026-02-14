@@ -1,0 +1,145 @@
+version: 2
+
+sources:
+  - name: raw_pokemon
+    schema: "{{ env_var('DBT_RAW_POKEMON_SCHEMA', 'raw_pokemon') }}"
+    tables:
+      - name: pokemon
+        description: "Main Pokemon table with basic attributes"
+        columns:
+          - name: id
+            description: "Pokemon ID (primary key)"
+            tests:
+              - not_null
+              - unique
+          - name: name
+            description: "Pokemon name"
+            tests:
+              - not_null
+
+      - name: pokemon_types
+        description: "Pokemon types (1-2 per Pokemon)"
+        columns:
+          - name: pokemon_id
+            description: "Foreign key to pokemon.id"
+            tests:
+              - not_null
+          - name: slot
+            description: "Type slot (1 or 2)"
+            tests:
+              - not_null
+          - name: type_name
+            description: "Name of the type (e.g., fire, water)"
+            tests:
+              - not_null
+
+      - name: pokemon_stats
+        description: "Pokemon base stats (6 per Pokemon)"
+        columns:
+          - name: pokemon_id
+            description: "Foreign key to pokemon.id"
+            tests:
+              - not_null
+          - name: stat_name
+            description: "Name of the stat"
+            tests:
+              - not_null
+          - name: base_stat
+            description: "Base stat value"
+            tests:
+              - not_null
+
+      - name: pokemon_abilities
+        description: "Pokemon abilities (2-3 per Pokemon)"
+        columns:
+          - name: pokemon_id
+            description: "Foreign key to pokemon.id"
+            tests:
+              - not_null
+          - name: ability_name
+            description: "Name of the ability"
+            tests:
+              - not_null
+
+models:
+  - name: pokemon_base
+    description: "Normalized Pokemon base information with type casting"
+    config:
+      tags: ["pokemon"]
+    columns:
+      - name: pokemon_id
+        description: "Unique Pokemon identifier"
+        tests:
+          - not_null
+          - unique
+      - name: pokemon_name
+        description: "Pokemon name"
+        tests:
+          - not_null
+
+  - name: pokemon_types
+    description: "Denormalized Pokemon types (primary and secondary)"
+    config:
+      tags: ["pokemon"]
+    columns:
+      - name: pokemon_id
+        description: "Foreign key to Pokemon"
+        tests:
+          - not_null
+          - unique
+      - name: primary_type
+        description: "Primary type (slot 1)"
+        tests:
+          - not_null
+      - name: secondary_type
+        description: "Secondary type (slot 2), null if single-type"
+
+  - name: pokemon_stats
+    description: "Pivoted Pokemon stats in wide format"
+    config:
+      tags: ["pokemon"]
+    columns:
+      - name: pokemon_id
+        description: "Foreign key to Pokemon"
+        tests:
+          - not_null
+          - unique
+      - name: total_stats
+        description: "Sum of all 6 base stats"
+        tests:
+          - not_null
+
+  - name: pokemon_abilities
+    description: "Pokemon abilities with hidden flag"
+    config:
+      tags: ["pokemon"]
+    columns:
+      - name: pokemon_id
+        description: "Foreign key to Pokemon"
+        tests:
+          - not_null
+
+  - name: pokemon_summary
+    description: "Complete analytical view with calculated metrics and derived fields"
+    config:
+      tags: ["pokemon"]
+    columns:
+      - name: pokemon_id
+        description: "Unique Pokemon identifier"
+        tests:
+          - not_null
+          - unique
+      - name: pokemon_name
+        description: "Pokemon name"
+        tests:
+          - not_null
+      - name: total_stats
+        description: "Sum of all base stats"
+        tests:
+          - not_null
+      - name: power_tier
+        description: "Pokemon power category based on total stats"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Legendary', 'Strong', 'Average', 'Weak']

@@ -2,46 +2,160 @@ version: 2
 
 sources:
   - name: raw_steam
+    description: >
+      Capa raw cargada por el DAG `steam_raw_ingest`.
+      Fuente externa principal:
+      - Steam Store AppDetails API: https://store.steampowered.com/api/appdetails?appids=<appid>
+      - SteamCharts chart-data: https://steamcharts.com/app/<appid>/chart-data.json
+      - SteamDB probe (accesibilidad): https://steamdb.info/app/<appid>/charts/
     schema: "{{ env_var('DBT_RAW_STEAM_SCHEMA', 'raw_steam') }}"
     tables:
       - name: steam_app_list
+        description: >
+          Catalogo objetivo de appids a ingestar (definido por Airflow Variable `steam_target_app_ids`,
+          default: 10,562810,2383760). No proviene de una API externa.
+        columns:
+          - name: appid
+            description: Identificador unico de la app en Steam.
+          - name: name
+            description: Nombre de la app (puede venir de default local del DAG).
+          - name: ingested_at
+            description: Timestamp de ultima carga/upsert.
       - name: steam_app_details
+        description: >
+          Snapshot raw por app desde Steam Store AppDetails API
+          (`https://store.steampowered.com/api/appdetails?appids=<appid>`).
+          Se mantiene el ultimo estado por app mediante upsert.
+        columns:
+          - name: appid
+            description: Identificador unico de la app en Steam.
+          - name: success
+            description: Flag de exito reportado por AppDetails.
+          - name: status_code
+            description: Codigo HTTP de la respuesta.
+          - name: name
+            description: Nombre reportado por la API.
+          - name: price_overview
+            description: JSON de pricing (moneda, precio inicial/final, descuento).
+          - name: payload
+            description: Payload JSON completo de la respuesta para trazabilidad.
+          - name: ingested_at
+            description: Timestamp de ultima carga/upsert.
       - name: steamcharts_timeseries
+        description: >
+          Serie temporal raw de jugadores concurrentes desde SteamCharts
+          (`https://steamcharts.com/app/<appid>/chart-data.json`).
+          Cada punto representa una observacion en el tiempo.
+        columns:
+          - name: source
+            description: Fuente de la serie (valor esperado: `steamcharts`).
+          - name: appid
+            description: Identificador de la app en Steam.
+          - name: observed_at
+            description: Timestamp UTC observado en SteamCharts.
+          - name: concurrent_players
+            description: Cantidad de jugadores concurrentes observada.
+          - name: ingested_at
+            description: Timestamp de carga/upsert del punto.
       - name: steam_source_fetch_log
+        description: >
+          Log tecnico append-only por intento de fetch/probe contra fuentes Steam.
+          Registra estado HTTP, errores, endpoint y payload resumido.
+        columns:
+          - name: id
+            description: Identificador tecnico autoincremental del evento de fetch.
+          - name: source
+            description: Fuente consultada (`steam_store_appdetails`, `steamcharts_chart_data`, `steamdb_charts_probe`).
+          - name: endpoint
+            description: Endpoint exacto consultado.
+          - name: appid
+            description: Appid asociado al intento.
+          - name: status_code
+            description: Codigo HTTP recibido (si aplica).
+          - name: ok
+            description: Resultado del intento (exito/falla).
+          - name: error_message
+            description: Error tecnico capturado, si existe.
+          - name: payload
+            description: Resumen JSON del resultado/payload para debugging.
+          - name: fetched_at
+            description: Timestamp del intento.
 
 models:
   - name: steam_app_details
-    description: "Ultimo estado disponible por app desde Steam Store API appdetails."
+    description: >
+      Modelo curado de detalle de apps (1 fila por `app_id`) a partir de
+      `source('raw_steam','steam_app_details')`. Conserva el ultimo registro por app
+      y solo filas exitosas (`success = true`), con campos de precio tipados.
     columns:
       - name: app_id
+        description: Identificador unico de la app.
         tests:
           - not_null
           - unique
       - name: app_name
+        description: Nombre de la app.
         tests:
           - not_null
+      - name: app_type
+        description: Tipo de producto reportado por Steam (ej. game, demo).
+      - name: is_free
+        description: Flag booleano de juego gratuito.
+      - name: price_initial_cents
+        description: Precio inicial en centavos.
+      - name: price_final_cents
+        description: Precio final en centavos.
+      - name: discount_percent
+        description: Porcentaje de descuento aplicado.
+      - name: price_currency
+        description: Codigo de moneda del precio.
 
   - name: steam_focus_games
-    description: "Subset con Counter-Strike, MONOPOLY PLUS y Monopoly Madness."
+    description: >
+      Subset de foco para analisis de negocio sobre appids fijos:
+      10 (Counter-Strike), 562810 (MONOPOLY PLUS), 2383760 (Monopoly Madness).
     columns:
       - name: app_id
+        description: Identificador unico de la app foco.
         tests:
           - not_null
           - unique
 
   - name: steam_monthly_players
-    description: "Serie mensual agregada desde snapshots de concurrentes en SteamCharts."
+    description: >
+      Agregado mensual de concurrencia de jugadores desde
+      `source('raw_steam','steamcharts_timeseries')` filtrando `source = 'steamcharts'`.
+      Grano: 1 fila por `app_id`,`month`.
     columns:
       - name: app_id
+        description: Identificador de la app.
         tests:
           - not_null
       - name: month
+        description: Mes calendario truncado (date).
         tests:
           - not_null
+      - name: avg_concurrent_players
+        description: Promedio mensual de jugadores concurrentes.
+      - name: peak_concurrent_players
+        description: Pico maximo mensual de jugadores concurrentes.
+      - name: min_concurrent_players
+        description: Minimo mensual de jugadores concurrentes.
+      - name: samples_in_month
+        description: Cantidad de observaciones usadas en el agregado mensual.
 
   - name: steam_focus_games_monthly
-    description: "Cruce de catalogo foco de Steam con metrica mensual de concurrencia."
+    description: >
+      Join entre `steam_focus_games` y `steam_monthly_players`.
+      Permite analizar pricing/catalogo junto a metricas mensuales de concurrencia.
     columns:
       - name: app_id
+        description: Identificador de la app foco.
         tests:
           - not_null
+      - name: month
+        description: Mes calendario del agregado.
+      - name: avg_concurrent_players
+        description: Promedio mensual de jugadores concurrentes para la app foco.
+      - name: peak_concurrent_players
+        description: Pico mensual de jugadores concurrentes para la app foco.

@@ -5,7 +5,7 @@ POETRY := poetry
 DBT_LOCAL_ENV := DBT_PROJECT_DIR=$(abspath $(DBT_DIR)) DBT_PROFILES_DIR=$(abspath $(DBT_DIR)) DBT_HOST=localhost DBT_PORT=5433 DBT_USER=dbt DBT_PASSWORD=dbt DBT_DBNAME=dbt DBT_SCHEMA=analytics
 DBT_DOCS_PORT ?= 8081
 
-.PHONY: start stop restart logs poetry-install dbt-compile dbt-seed dbt-run dbt-test dbt-all dbt-docs-generate dbt-docs
+.PHONY: start stop restart logs poetry-install dbt-compile dbt-seed dbt-run dbt-test dbt-all dbt-docs-generate dbt-docs kb-generate
 
 start:
 	cd $(AIRFLOW_DIR) && astro dev start
@@ -45,3 +45,10 @@ dbt-docs-generate:
 dbt-docs:
 	$(MAKE) dbt-docs-generate
 	$(DBT_LOCAL_ENV) $(POETRY) -C $(AIRFLOW_DIR_ABS) run dbt docs serve --port $(DBT_DOCS_PORT)
+
+kb-generate:
+	$(DBT_LOCAL_ENV) $(POETRY) -C $(AIRFLOW_DIR_ABS) run dbt docs generate
+	python3 knowledge_base/scripts/generate_kb_from_dbt.py \
+		--manifest airflow/include/dbt/target/manifest.json \
+		--catalog airflow/include/dbt/target/catalog.json \
+		--out-dir knowledge_base/generated

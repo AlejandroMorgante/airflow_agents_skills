@@ -1,0 +1,47 @@
+version: 2
+
+sources:
+  - name: raw_steam
+    schema: "{{ env_var('DBT_RAW_STEAM_SCHEMA', 'raw_steam') }}"
+    tables:
+      - name: steam_app_list
+      - name: steam_app_details
+      - name: steamcharts_timeseries
+      - name: steam_source_fetch_log
+
+models:
+  - name: steam_app_details
+    description: "Ultimo estado disponible por app desde Steam Store API appdetails."
+    columns:
+      - name: app_id
+        tests:
+          - not_null
+          - unique
+      - name: app_name
+        tests:
+          - not_null
+
+  - name: steam_focus_games
+    description: "Subset con Counter-Strike, MONOPOLY PLUS y Monopoly Madness."
+    columns:
+      - name: app_id
+        tests:
+          - not_null
+          - unique
+
+  - name: steam_monthly_players
+    description: "Serie mensual agregada desde snapshots de concurrentes en SteamCharts."
+    columns:
+      - name: app_id
+        tests:
+          - not_null
+      - name: month
+        tests:
+          - not_null
+
+  - name: steam_focus_games_monthly
+    description: "Cruce de catalogo foco de Steam con metrica mensual de concurrencia."
+    columns:
+      - name: app_id
+        tests:
+          - not_null

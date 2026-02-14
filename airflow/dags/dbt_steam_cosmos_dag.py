@@ -1,0 +1,42 @@
+from datetime import datetime
+
+from airflow.models import Variable
+from cosmos import DbtDag
+from cosmos.config import ProfileConfig, ProjectConfig, RenderConfig
+
+DBT_DIR = "/usr/local/airflow/include/dbt"
+DBT_ENV = {
+    "DBT_PROFILES_DIR": DBT_DIR,
+    # Use host.docker.internal to avoid DNS issues between containers.
+    "DBT_HOST": Variable.get("dbt_host", default_var="host.docker.internal"),
+    "DBT_PORT": Variable.get("dbt_port", default_var="5433"),
+    "DBT_USER": Variable.get("dbt_user", default_var="dbt"),
+    "DBT_PASSWORD": Variable.get("dbt_password", default_var="dbt"),
+    "DBT_DBNAME": Variable.get("dbt_dbname", default_var="dbt"),
+    "DBT_SCHEMA": Variable.get("dbt_schema", default_var="analytics"),
+    "DBT_RAW_STEAM_SCHEMA": Variable.get("steam_schema", default_var="raw_steam"),
+}
+
+profile_config = ProfileConfig(
+    profile_name="airflow_agents_dbt",
+    target_name="dev",
+    profiles_yml_filepath=f"{DBT_DIR}/profiles.yml",
+)
+
+render_config = RenderConfig(select=["tag:steam"])
+
+
+dbt_steam_cosmos_dag = DbtDag(
+    dag_id="dbt_steam_cosmos_dag",
+    schedule=None,
+    start_date=datetime(2024, 1, 1),
+    catchup=False,
+    tags=["dbt", "steam", "cosmos"],
+    project_config=ProjectConfig(
+        dbt_project_path=DBT_DIR,
+        env_vars=DBT_ENV,
+        install_dbt_deps=True,
+    ),
+    profile_config=profile_config,
+    render_config=render_config,
+)

@@ -9,10 +9,7 @@ airflow-webserver.pid
 webserver_config.py
 airflow.cfg
 airflow.db
-include/dbt/target/*
-!include/dbt/target/index.html
-!include/dbt/target/manifest.json
-!include/dbt/target/catalog.json
+include/dbt/target/
 include/dbt/logs/
 include/dbt/.user.yml
 include/dbt/notebooks/

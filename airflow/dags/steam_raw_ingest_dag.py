@@ -4,13 +4,16 @@ from datetime import datetime, timezone
 
 import requests
 from airflow import DAG
+from airflow.datasets import Dataset
 from airflow.models import Variable
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from psycopg2.extras import Json, execute_values
 
 SQL_DIR = "/usr/local/airflow/include/sql/steam"
+STEAM_RAW_READY = Dataset("airflow_agents://steam/raw_ready")
 DEFAULT_TARGET_APP_IDS = [10, 562810, 2383760]
 DEFAULT_APP_NAME_BY_ID = {
     10: "Counter-Strike",
@@ -398,6 +401,11 @@ with DAG(
         python_callable=probe_steamdb_access,
     )
 
+    steam_raw_ready = EmptyOperator(
+        task_id="steam_raw_ready",
+        outlets=[STEAM_RAW_READY],
+    )
+
     (
         create_schema
         >> create_app_list_table
@@ -407,3 +415,4 @@ with DAG(
         >> load_apps
     )
     load_apps >> [fetch_app_details, fetch_steamcharts_timeseries, probe_steamdb]
+    [fetch_app_details, fetch_steamcharts_timeseries, probe_steamdb] >> steam_raw_ready

@@ -1,10 +1,12 @@
 from datetime import datetime
 
+from airflow.datasets import Dataset
 from airflow.models import Variable
 from cosmos import DbtDag
 from cosmos.config import ProfileConfig, ProjectConfig, RenderConfig
 
 DBT_DIR = "/usr/local/airflow/include/dbt"
+STEAM_RAW_READY = Dataset("airflow_agents://steam/raw_ready")
 DBT_ENV = {
     "DBT_PROFILES_DIR": DBT_DIR,
     # Use host.docker.internal to avoid DNS issues between containers.
@@ -28,7 +30,7 @@ render_config = RenderConfig(select=["tag:steam"])
 
 dbt_steam_cosmos_dag = DbtDag(
     dag_id="dbt_steam_cosmos_dag",
-    schedule=None,
+    schedule=[STEAM_RAW_READY],
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=["dbt", "steam", "cosmos"],

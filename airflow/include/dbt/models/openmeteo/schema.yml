@@ -3,13 +3,108 @@ version: 2
 sources:
   - name: raw_openmeteo
     schema: "{{ env_var('DBT_RAW_SCHEMA', 'raw_openmeteo') }}"
+    description: "Capa raw cargada por Airflow desde la Forecast API de Open-Meteo."
     tables:
       - name: openmeteo_hourly
+        description: "Respuesta horaria de Open-Meteo (endpoint forecast, bloque `hourly`)."
+        columns:
+          - name: time
+            description: "Timestamp de la observacion horaria (ISO8601)."
+          - name: temperature_2m
+            description: "Temperatura del aire a 2 metros (unidad segun API, normalmente C)."
+          - name: apparent_temperature
+            description: "Temperatura aparente calculada por Open-Meteo."
+          - name: relative_humidity_2m
+            description: "Humedad relativa a 2 metros (porcentaje)."
+          - name: precipitation
+            description: "Precipitacion horaria agregada."
+          - name: wind_speed_10m
+            description: "Velocidad del viento a 10 metros."
+          - name: weather_code
+            description: "Codigo WMO de condicion meteorologica."
+          - name: latitude
+            description: "Latitud del punto consultado."
+          - name: longitude
+            description: "Longitud del punto consultado."
+          - name: elevation
+            description: "Elevacion en metros del punto consultado."
+          - name: timezone
+            description: "Zona horaria devuelta por la API."
+          - name: timezone_abbreviation
+            description: "Abreviatura de la zona horaria."
+      - name: openmeteo_daily
+        description: "Respuesta diaria de Open-Meteo (endpoint forecast, bloque `daily`)."
+        columns:
+          - name: date
+            description: "Fecha de observacion/resumen diario."
+          - name: temperature_2m_max
+            description: "Maxima diaria de temperatura a 2 metros."
+          - name: temperature_2m_min
+            description: "Minima diaria de temperatura a 2 metros."
+          - name: precipitation_sum
+            description: "Suma diaria de precipitacion."
+          - name: latitude
+            description: "Latitud del punto consultado."
+          - name: longitude
+            description: "Longitud del punto consultado."
+          - name: elevation
+            description: "Elevacion en metros del punto consultado."
+          - name: timezone
+            description: "Zona horaria devuelta por la API."
+          - name: timezone_abbreviation
+            description: "Abreviatura de la zona horaria."
 
 models:
   - name: openmeteo_hourly
-    description: "Datos horarios de Open-Meteo normalizados para consumo en silver."
+    description: "Modelo horario tipado y normalizado para analitica de granularidad hora."
     columns:
       - name: observed_at
+        description: "Timestamp horario con zona horaria."
+        tests:
+          - not_null
+      - name: observed_date
+        description: "Fecha de la observacion, derivada de observed_at."
+        tests:
+          - not_null
+      - name: latitude
+        description: "Latitud normalizada."
+        tests:
+          - not_null
+      - name: longitude
+        description: "Longitud normalizada."
+        tests:
+          - not_null
+
+  - name: openmeteo_daily
+    description: "Modelo diario tipado en base al bloque `daily` de Open-Meteo."
+    columns:
+      - name: observed_date
+        description: "Fecha de observacion/resumen diario."
+        tests:
+          - not_null
+      - name: latitude
+        description: "Latitud normalizada."
+        tests:
+          - not_null
+      - name: longitude
+        description: "Longitud normalizada."
+        tests:
+          - not_null
+
+  - name: openmeteo_daily_from_hourly
+    description: "Agregados diarios construidos desde el modelo horario para reconciliacion."
+    columns:
+      - name: observed_date
+        tests:
+          - not_null
+      - name: hourly_samples
+        description: "Cantidad de filas horarias usadas para el agregado diario."
+        tests:
+          - not_null
+
+  - name: openmeteo_daily_quality
+    description: "Comparativa entre resumen diario API y agregado diario calculado desde hourly."
+    columns:
+      - name: observed_date
         tests:
           - not_null

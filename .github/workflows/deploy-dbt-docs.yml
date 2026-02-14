@@ -12,15 +12,57 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: dbt
+          POSTGRES_PASSWORD: dbt
+          POSTGRES_DB: dbt
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U dbt -d dbt"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     env:
       BUCKET_NAME: dbt-documentation-snaildoc
       DOCS_DIR: airflow/include/dbt/target
       AWS_REGION: ${{ secrets.AWS_REGION }}
+      DBT_PROJECT_DIR: ${{ github.workspace }}/airflow/include/dbt
+      DBT_PROFILES_DIR: ${{ github.workspace }}/airflow/include/dbt
+      DBT_HOST: 127.0.0.1
+      DBT_PORT: '5432'
+      DBT_USER: dbt
+      DBT_PASSWORD: dbt
+      DBT_DBNAME: dbt
+      DBT_SCHEMA: analytics
+      DBT_RAW_SCHEMA: raw_openmeteo
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate required docs files
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry -C airflow install --no-interaction --no-ansi
+
+      - name: Run dbt deps
+        run: poetry -C airflow run dbt deps
+
+      - name: Generate dbt docs
+        run: poetry -C airflow run dbt docs generate
+
+      - name: Validate generated docs files
         run: |
           test -f "${DOCS_DIR}/index.html"
           test -f "${DOCS_DIR}/manifest.json"

@@ -1,0 +1,65 @@
+name: Validate dbt compile (PR)
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'airflow/include/dbt/**'
+      - 'airflow/pyproject.toml'
+      - 'airflow/poetry.lock'
+      - '.github/workflows/dbt-compile-pr.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dbt-compile:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: dbt
+          POSTGRES_PASSWORD: dbt
+          POSTGRES_DB: dbt
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U dbt -d dbt"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DBT_PROJECT_DIR: ${{ github.workspace }}/airflow/include/dbt
+      DBT_PROFILES_DIR: ${{ github.workspace }}/airflow/include/dbt
+      DBT_HOST: 127.0.0.1
+      DBT_PORT: '5432'
+      DBT_USER: dbt
+      DBT_PASSWORD: dbt
+      DBT_DBNAME: dbt
+      DBT_SCHEMA: analytics
+      DBT_RAW_SCHEMA: raw_openmeteo
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry -C airflow install --no-interaction --no-ansi
+
+      - name: Run dbt deps
+        run: poetry -C airflow run dbt deps
+
+      - name: Run dbt compile
+        run: poetry -C airflow run dbt compile

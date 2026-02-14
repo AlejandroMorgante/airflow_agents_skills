@@ -9,12 +9,15 @@ Este proyecto implementa un flujo end-to-end donde Airflow ingiere datos de APIs
 2. DAGs Cosmos (`dbt_*_cosmos_dag`) ejecutan subsets de dbt por tags.
 3. Modelos `analytics` tipan, estandarizan y agregan datos para analisis.
 
-## Open-Meteo (estado actual)
+## Open-Meteo
 
 - Ingesta desde `https://api.open-meteo.com/v1/forecast`.
 - Carga dos bloques de API:
   - `hourly` -> `raw_openmeteo.openmeteo_hourly`
   - `daily` -> `raw_openmeteo.openmeteo_daily`
+- Orquestacion:
+  - `openmeteo_raw_ingest` publica dataset `airflow_agents://openmeteo/raw_ready`
+  - `dbt_openmeteo_cosmos_dag` corre modelos con tag `open-meteo`
 - Modelos principales:
   - `openmeteo_hourly`: normalizacion horaria con metadata de ubicacion y timezone.
   - `openmeteo_daily`: normalizacion diaria desde bloque `daily`.
@@ -23,20 +26,23 @@ Este proyecto implementa un flujo end-to-end donde Airflow ingiere datos de APIs
 
 ## Steam
 
-- Ingesta desde multiples fuentes:
-  - Steam Store API: `https://store.steampowered.com/api/appdetails`
-  - SteamCharts: `https://steamcharts.com/app/<appid>/chart-data.json`
-  - SteamDB: `https://steamdb.info/app/<appid>/charts/`
-- Carga datos en:
-  - `raw_steam.steam_app_list`: lista de app IDs objetivo
-  - `raw_steam.steam_app_details`: metadatos de apps desde Steam Store API
-  - `raw_steam.steamcharts_timeseries`: series temporales de jugadores concurrentes
-  - `raw_steam.steam_source_fetch_log`: log de fetches por fuente
+- Ingesta desde fuentes Steam:
+  - Steam Store AppDetails API: `https://store.steampowered.com/api/appdetails?appids=<appid>`
+  - SteamCharts chart-data: `https://steamcharts.com/app/<appid>/chart-data.json`
+  - SteamDB probe: `https://steamdb.info/app/<appid>/charts/`
+- Capa raw generada por `steam_raw_ingest`:
+  - `raw_steam.steam_app_list`
+  - `raw_steam.steam_app_details`
+  - `raw_steam.steamcharts_timeseries`
+  - `raw_steam.steam_source_fetch_log`
+- Orquestacion:
+  - `steam_raw_ingest` publica dataset `airflow_agents://steam/raw_ready`
+  - `dbt_steam_cosmos_dag` se dispara por ese dataset y ejecuta solo `tag:steam`
 - Modelos principales:
-  - `steam_app_details`: detalles de apps curados con tipado de precios
-  - `steam_focus_games`: subset enfocado de juegos seleccionados
-  - `steam_monthly_players`: metricas mensuales de jugadores concurrentes
-  - `steam_focus_games_monthly`: catalogo de juegos enfocados con metricas mensuales
+  - `steam_app_details`: ultimo estado exitoso por app con tipado de precios.
+  - `steam_focus_games`: subset de apps foco para analisis.
+  - `steam_monthly_players`: agregados mensuales de concurrencia desde SteamCharts.
+  - `steam_focus_games_monthly`: join entre catalogo foco y metricas mensuales.
 
 ## Pokemon
 
@@ -46,6 +52,9 @@ Este proyecto implementa un flujo end-to-end donde Airflow ingiere datos de APIs
   - `raw_pokemon.pokemon_types`: tipos (slot 1 = primario, slot 2 = secundario)
   - `raw_pokemon.pokemon_stats`: stats base (HP, Attack, Defense, Special Attack, Special Defense, Speed)
   - `raw_pokemon.pokemon_abilities`: habilidades incluyendo habilidades ocultas
+- Orquestacion:
+  - `pokemon_raw_ingest` publica dataset `airflow_agents://pokemon/raw_ready`
+  - `dbt_pokemon_cosmos_dag` se dispara por ese dataset y ejecuta solo `tag:pokemon`
 - Modelos principales:
   - `pokemon_base`: tabla base normalizada de Pokemon
   - `pokemon_types`: tipos pivoteados a columnas primary_type y secondary_type
@@ -59,15 +68,23 @@ Este proyecto implementa un flujo end-to-end donde Airflow ingiere datos de APIs
 - Los modelos intermedios/analiticos se consumen por `ref()`.
 - El naming explicita granularidad (`hourly`, `daily`, `monthly`) y objetivo (`quality`, `summary`, `focus`).
 - Los tags organizan modelos por dominio: `open-meteo`, `steam`, `pokemon`.
-- Las columnas clave de trazabilidad varian por dominio:
-  - **Open-Meteo**: `observed_at`, `observed_date`, `latitude`, `longitude`, `timezone`
-  - **Steam**: `app_id`, `name`, `fetched_at`, `month`
-  - **Pokemon**: `pokemon_id`, `pokemon_name`, `type_combination`, `total_stats`
+- Las columnas clave de trazabilidad en Open-Meteo son:
+  - tiempo: `observed_at`, `observed_date`
+  - geografia: `latitude`, `longitude`, `elevation`
+  - contexto temporal: `timezone`, `timezone_abbreviation`
+- Las columnas clave de trazabilidad en Steam son:
+  - identificador: `appid` / `app_id`
+  - tiempo de carga/observacion: `ingested_at`, `observed_at`, `month`
+  - auditoria de fuentes: `source`, `endpoint`, `status_code`, `ok`, `error_message`
+- Las columnas clave de trazabilidad en Pokemon son:
+  - identificador: `pokemon_id`
+  - nombre: `pokemon_name`
+  - clasificacion: `type_combination`, `power_tier`
+  - metricas: `total_stats`, `attack_style`, `battle_role`, `speed_tier`
 
-Para explorar linaje:
-- Open-Meteo: empezar en `models/openmeteo/schema.yml`
-- Steam: empezar en `models/steam/schema.yml`
-- Pokemon: empezar en `models/pokemon/schema.yml`
-
-Todos siguen dependencias por `ref()`.
+Para explorar linaje, empezar en:
+- `models/openmeteo/schema.yml`
+- `models/steam/schema.yml`
+- `models/pokemon/schema.yml`
+y seguir dependencias por `ref()`.
 {% enddocs %}

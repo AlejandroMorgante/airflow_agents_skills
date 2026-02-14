@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'airflow/include/dbt/**'
+      - 'airflow/pyproject.toml'
+      - 'airflow/poetry.lock'
+      - '.github/workflows/deploy-dbt-docs.yml'
   workflow_dispatch:
 
 permissions:

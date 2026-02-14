@@ -48,7 +48,7 @@ sources:
           Cada punto representa una observacion en el tiempo.
         columns:
           - name: source
-            description: Fuente de la serie (valor esperado: `steamcharts`).
+            description: "Fuente de la serie (valor esperado: `steamcharts`)."
           - name: appid
             description: Identificador de la app en Steam.
           - name: observed_at

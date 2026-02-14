@@ -1,8 +1,0 @@
-repos:
-  - repo: local
-    hooks:
-      - id: dbt-docs-generate
-        name: Generate dbt docs artifacts
-        entry: scripts/hooks/generate_dbt_docs_artifacts.sh
-        language: script
-        pass_filenames: false

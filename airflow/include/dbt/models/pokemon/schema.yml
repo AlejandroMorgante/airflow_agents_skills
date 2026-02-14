@@ -3,143 +3,255 @@ version: 2
 sources:
   - name: raw_pokemon
     schema: "{{ env_var('DBT_RAW_POKEMON_SCHEMA', 'raw_pokemon') }}"
+    description: "Capa raw cargada por Airflow desde la API de PokeAPI (https://pokeapi.co)."
     tables:
       - name: pokemon
-        description: "Main Pokemon table with basic attributes"
+        description: "Tabla principal de Pokemon con atributos base cargados desde el endpoint /pokemon de PokeAPI."
         columns:
           - name: id
-            description: "Pokemon ID (primary key)"
+            description: "Identificador unico del Pokemon (primary key). Corresponde al National Pokedex number."
             tests:
               - not_null
               - unique
           - name: name
-            description: "Pokemon name"
+            description: "Nombre del Pokemon en minusculas (formato PokeAPI)."
             tests:
               - not_null
+          - name: height
+            description: "Altura del Pokemon en decimetros (10 decimetros = 1 metro)."
+          - name: weight
+            description: "Peso del Pokemon en hectogramos (10 hectogramos = 1 kilogramo)."
+          - name: base_experience
+            description: "Experiencia base otorgada al derrotar este Pokemon."
+          - name: sprite_front_default
+            description: "URL del sprite frontal por defecto del Pokemon."
+          - name: inserted_at
+            description: "Timestamp de ingestion en la capa raw."
 
       - name: pokemon_types
-        description: "Pokemon types (1-2 per Pokemon)"
+        description: "Tipos de Pokemon (1 o 2 por Pokemon). Slot 1 = tipo primario, slot 2 = tipo secundario."
         columns:
           - name: pokemon_id
-            description: "Foreign key to pokemon.id"
+            description: "Foreign key a pokemon.id."
             tests:
               - not_null
           - name: slot
-            description: "Type slot (1 or 2)"
+            description: "Slot del tipo: 1 para tipo primario, 2 para tipo secundario."
             tests:
               - not_null
           - name: type_name
-            description: "Name of the type (e.g., fire, water)"
+            description: "Nombre del tipo (e.g., fire, water, grass, electric, psychic, dragon)."
             tests:
               - not_null
+          - name: inserted_at
+            description: "Timestamp de ingestion en la capa raw."
 
       - name: pokemon_stats
-        description: "Pokemon base stats (6 per Pokemon)"
+        description: "Estadisticas base de Pokemon (6 stats por Pokemon: HP, Attack, Defense, Special Attack, Special Defense, Speed)."
         columns:
           - name: pokemon_id
-            description: "Foreign key to pokemon.id"
+            description: "Foreign key a pokemon.id."
             tests:
               - not_null
           - name: stat_name
-            description: "Name of the stat"
+            description: "Nombre de la estadistica (hp, attack, defense, special-attack, special-defense, speed)."
             tests:
               - not_null
           - name: base_stat
-            description: "Base stat value"
+            description: "Valor base de la estadistica. Los valores tipicos van de 1 a 255."
             tests:
               - not_null
+          - name: effort
+            description: "Puntos de esfuerzo (EVs) otorgados al derrotar este Pokemon en esta stat."
+          - name: inserted_at
+            description: "Timestamp de ingestion en la capa raw."
 
       - name: pokemon_abilities
-        description: "Pokemon abilities (2-3 per Pokemon)"
+        description: "Habilidades de Pokemon (2-3 por Pokemon). Incluye habilidades normales y ocultas."
         columns:
           - name: pokemon_id
-            description: "Foreign key to pokemon.id"
+            description: "Foreign key a pokemon.id."
             tests:
               - not_null
+          - name: slot
+            description: "Slot de la habilidad (orden en que aparece)."
           - name: ability_name
-            description: "Name of the ability"
+            description: "Nombre de la habilidad (e.g., overgrow, torrent, blaze)."
             tests:
               - not_null
+          - name: is_hidden
+            description: "Booleano que indica si es una habilidad oculta (hidden ability)."
+          - name: inserted_at
+            description: "Timestamp de ingestion en la capa raw."
 
 models:
   - name: pokemon_base
-    description: "Normalized Pokemon base information with type casting"
+    description: "Modelo base de Pokemon normalizado y tipado. Proyeccion limpia de la tabla raw con renombrado de columnas para claridad analitica."
     config:
       tags: ["pokemon"]
     columns:
       - name: pokemon_id
-        description: "Unique Pokemon identifier"
+        description: "Identificador unico del Pokemon (National Pokedex number)."
         tests:
           - not_null
           - unique
       - name: pokemon_name
-        description: "Pokemon name"
+        description: "Nombre del Pokemon."
         tests:
           - not_null
+      - name: height_decimeters
+        description: "Altura en decimetros (dividir por 10 para obtener metros)."
+      - name: weight_hectograms
+        description: "Peso en hectogramos (dividir por 10 para obtener kilogramos)."
+      - name: base_experience
+        description: "Experiencia base otorgada al derrotar este Pokemon en combate."
+      - name: sprite_url
+        description: "URL del sprite visual del Pokemon (imagen frontal por defecto)."
 
   - name: pokemon_types
-    description: "Denormalized Pokemon types (primary and secondary)"
+    description: "Tipos de Pokemon pivoteados a formato ancho con tipo primario y secundario. Facilita joins y filtros por tipo."
     config:
       tags: ["pokemon"]
     columns:
       - name: pokemon_id
-        description: "Foreign key to Pokemon"
+        description: "Foreign key a pokemon_base."
         tests:
           - not_null
           - unique
       - name: primary_type
-        description: "Primary type (slot 1)"
+        description: "Tipo primario del Pokemon (slot 1). Todos los Pokemon tienen tipo primario."
         tests:
           - not_null
       - name: secondary_type
-        description: "Secondary type (slot 2), null if single-type"
+        description: "Tipo secundario del Pokemon (slot 2). NULL si el Pokemon es de un solo tipo."
 
   - name: pokemon_stats
-    description: "Pivoted Pokemon stats in wide format"
+    description: "Estadisticas base pivoteadas a formato ancho. Transforma 6 filas por Pokemon en 1 fila con 6 columnas + total_stats."
     config:
       tags: ["pokemon"]
     columns:
       - name: pokemon_id
-        description: "Foreign key to Pokemon"
+        description: "Foreign key a pokemon_base."
         tests:
           - not_null
           - unique
+      - name: hp
+        description: "Hit Points (puntos de salud) base del Pokemon."
+      - name: attack
+        description: "Ataque fisico base del Pokemon."
+      - name: defense
+        description: "Defensa fisica base del Pokemon."
+      - name: special_attack
+        description: "Ataque especial base del Pokemon (para movimientos especiales)."
+      - name: special_defense
+        description: "Defensa especial base del Pokemon (contra ataques especiales)."
+      - name: speed
+        description: "Velocidad base del Pokemon (determina orden de turno en combate)."
       - name: total_stats
-        description: "Sum of all 6 base stats"
+        description: "Suma de las 6 estadisticas base. Metrica clave para evaluar poder general del Pokemon."
         tests:
           - not_null
 
   - name: pokemon_abilities
-    description: "Pokemon abilities with hidden flag"
+    description: "Habilidades de Pokemon normalizadas. Proyeccion tipada de la tabla raw."
     config:
       tags: ["pokemon"]
     columns:
       - name: pokemon_id
-        description: "Foreign key to Pokemon"
+        description: "Foreign key a pokemon_base."
         tests:
           - not_null
+      - name: slot
+        description: "Slot de la habilidad (indica orden/prioridad)."
+      - name: ability_name
+        description: "Nombre de la habilidad."
+      - name: is_hidden
+        description: "TRUE si es una habilidad oculta (hidden ability), FALSE si es habilidad normal."
 
   - name: pokemon_summary
-    description: "Complete analytical view with calculated metrics and derived fields"
+    description: |
+      Vista analitica completa que integra base, tipos, stats y habilidades con metricas calculadas.
+      Incluye clasificaciones derivadas para analisis de combate:
+      - power_tier: categoria de poder basada en total_stats
+      - attack_style: estilo de combate (Physical/Special/Balanced) basado en ratio attack vs special_attack
+      - battle_role: rol de combate (Offensive/Defensive/Balanced) basado en stats ofensivos vs defensivos
+      - speed_tier: categoria de velocidad para determinar orden de turno
+      Ideal para consultas analiticas y exploracion de patrones de Pokemon.
     config:
       tags: ["pokemon"]
     columns:
       - name: pokemon_id
-        description: "Unique Pokemon identifier"
+        description: "Identificador unico del Pokemon."
         tests:
           - not_null
           - unique
       - name: pokemon_name
-        description: "Pokemon name"
+        description: "Nombre del Pokemon."
         tests:
           - not_null
+      - name: height_decimeters
+        description: "Altura en decimetros."
+      - name: weight_hectograms
+        description: "Peso en hectogramos."
+      - name: base_experience
+        description: "Experiencia base otorgada."
+      - name: sprite_url
+        description: "URL del sprite visual."
+      - name: primary_type
+        description: "Tipo primario del Pokemon."
+      - name: secondary_type
+        description: "Tipo secundario (NULL si mono-tipo)."
+      - name: type_combination
+        description: "Combinacion de tipos en formato 'primary/secondary' o solo 'primary' si mono-tipo."
+      - name: hp
+        description: "Hit Points base."
+      - name: attack
+        description: "Ataque fisico base."
+      - name: defense
+        description: "Defensa fisica base."
+      - name: special_attack
+        description: "Ataque especial base."
+      - name: special_defense
+        description: "Defensa especial base."
+      - name: speed
+        description: "Velocidad base."
       - name: total_stats
-        description: "Sum of all base stats"
+        description: "Suma de las 6 stats base."
         tests:
           - not_null
       - name: power_tier
-        description: "Pokemon power category based on total stats"
+        description: |
+          Clasificacion de poder basada en total_stats:
+          - 'Legendary': total_stats >= 600 (Pokemon legendarios y pseudo-legendarios)
+          - 'Strong': total_stats >= 500 (Pokemon fuertes, evolucionados)
+          - 'Average': total_stats >= 400 (Pokemon promedio)
+          - 'Weak': total_stats < 400 (Pokemon basicos, pre-evolucionados)
         tests:
           - not_null
           - accepted_values:
               values: ['Legendary', 'Strong', 'Average', 'Weak']
+      - name: attack_style
+        description: |
+          Estilo de combate preferido:
+          - 'Physical': attack > special_attack * 1.2 (especialista en ataques fisicos)
+          - 'Special': special_attack > attack * 1.2 (especialista en ataques especiales)
+          - 'Balanced': diferencia <= 20% (puede usar ambos estilos efectivamente)
+      - name: battle_role
+        description: |
+          Rol de combate basado en balance ofensivo/defensivo:
+          - 'Offensive': suma(attack + special_attack) > suma(defense + special_defense) * 1.2
+          - 'Defensive': suma(defense + special_defense) > suma(attack + special_attack) * 1.2
+          - 'Balanced': diferencia <= 20% entre ofensiva y defensa
+      - name: speed_tier
+        description: |
+          Categoria de velocidad para analisis de orden de turno:
+          - 'Very Fast': speed >= 100 (strike primero en casi todos los matchups)
+          - 'Fast': speed >= 70 (competitivo en velocidad)
+          - 'Average': speed >= 50 (velocidad media)
+          - 'Slow': speed < 50 (generalmente ataca ultimo)
+      - name: abilities
+        description: "Lista concatenada de todas las habilidades del Pokemon (separadas por coma)."
+      - name: hidden_ability
+        description: "Nombre de la habilidad oculta si existe, NULL si no tiene."
+      - name: ability_count
+        description: "Cantidad total de habilidades del Pokemon (incluyendo hidden ability)."

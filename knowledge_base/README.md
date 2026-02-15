@@ -6,6 +6,7 @@ Esta carpeta contiene los documentos que puede consumir una Knowledge Base de Am
 
 - `scripts/generate_kb_from_dbt.py`: genera documentos model-centric a partir de artifacts de dbt.
 - `generated/docs/`: un documento por modelo (`model__*.md`) legible para humanos.
+- `generated/docs/*.md.metadata.json`: metadata sidecar por documento en formato Bedrock S3.
 - `generated/index.json`: indice de todos los documentos generados.
 
 ## Requisitos
@@ -37,9 +38,10 @@ Cada documento representa un modelo de dbt e incluye:
 El output queda en `knowledge_base/generated/` y se puede subir al bucket S3 que use la KB:
 
 - markdowns en `generated/docs/`
+- sidecars `*.md.metadata.json` en `generated/docs/` (uno por markdown, mismo nombre + `.metadata.json`)
 - `generated/index.json` con indice por documento (`by_document`)
 
 ## Uso en Bedrock
 
-1. Subir `knowledge_base/generated/docs/` al prefijo S3 de la KB.
+1. Subir `knowledge_base/generated/docs/` completo al prefijo S3 de la KB (markdown + sidecars `*.metadata.json`).
 2. Configurar el data source de Bedrock para ingerir los markdowns.

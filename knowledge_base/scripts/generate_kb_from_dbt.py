@@ -54,6 +54,7 @@ def merge_columns(base_columns: dict[str, Any], catalog_columns: dict[str, Any] 
 class DocRecord:
     doc_id: str
     relative_doc_path: str
+    relative_metadata_path: str
     resource_type: str
     domain: str
     name: str
@@ -73,11 +74,17 @@ def write_doc(
     doc_path = out_docs_dir / filename
 
     doc_path.write_text(content, encoding="utf-8")
+    metadata_path = doc_path.with_name(f"{doc_path.name}.metadata.json")
+    bedrock_metadata = {
+        "metadataAttributes": build_bedrock_metadata_attributes(metadata),
+    }
+    metadata_path.write_text(json.dumps(bedrock_metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     checksum = sha256(content.encode("utf-8")).hexdigest()
     return DocRecord(
         doc_id=slugify(f"{resource_type}_{name_hint}"),
         relative_doc_path=str(doc_path),
+        relative_metadata_path=str(metadata_path),
         resource_type=resource_type,
         domain=clean_text(metadata.get("domain"), "general"),
         name=clean_text(metadata.get("name"), "unknown"),
@@ -85,6 +92,26 @@ def write_doc(
         tags=[str(t) for t in (metadata.get("tags") or [])],
         checksum=checksum,
     )
+
+
+def build_bedrock_metadata_attributes(metadata: dict[str, Any]) -> dict[str, Any]:
+    tags = [clean_text(t) for t in (metadata.get("tags") or []) if clean_text(t)]
+    attrs = {
+        "resource_type": clean_text(metadata.get("resource_type"), "unknown"),
+        "domain": clean_text(metadata.get("domain"), "general"),
+        "schema": clean_text(metadata.get("schema"), "unknown"),
+        "name": clean_text(metadata.get("name"), "unknown"),
+        "unique_id": clean_text(metadata.get("unique_id"), "unknown"),
+        "tags": ", ".join(tags),
+        "tag_count": len(tags),
+        "upstream_model_count": int(metadata.get("upstream_model_count") or 0),
+        "upstream_source_count": int(metadata.get("upstream_source_count") or 0),
+        "downstream_model_count": int(metadata.get("downstream_model_count") or 0),
+        "associated_test_count": int(metadata.get("associated_test_count") or 0),
+    }
+    for tag in tags:
+        attrs[f"tag_{slugify(tag)}"] = True
+    return attrs
 
 
 def build_model_centric_doc(
@@ -204,6 +231,7 @@ def build_model_centric_doc(
         "resource_type": "model",
         "schema": schema,
         "name": name,
+        "unique_id": unique_id,
         "tags": tags,
         "domain": detect_domain(name, tags),
         "upstream_model_count": len(upstream_models),
@@ -231,7 +259,7 @@ def index_tests_by_model(node_map: dict[str, dict[str, Any]]) -> dict[str, list[
 def clear_docs_dir(out_docs_dir: Path) -> None:
     if not out_docs_dir.exists():
         return
-    for pattern in ("*.md",):
+    for pattern in ("*.md", "*.md.metadata.json"):
         for file in out_docs_dir.glob(pattern):
             file.unlink()
 

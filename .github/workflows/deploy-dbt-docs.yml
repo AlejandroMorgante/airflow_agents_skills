@@ -87,6 +87,7 @@ jobs:
           test -f "${KB_DIR}/index.json"
           test -d "${KB_DIR}/docs"
           ls "${KB_DIR}/docs/"*.md >/dev/null
+          ls "${KB_DIR}/docs/"*.md.metadata.json >/dev/null
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -109,4 +110,5 @@ jobs:
           aws s3 sync "${KB_DIR}/docs" "s3://${BUCKET_NAME}/knowledge-base/docs" \
             --exclude "*" \
             --include "*.md" \
+            --include "*.md.metadata.json" \
             --delete

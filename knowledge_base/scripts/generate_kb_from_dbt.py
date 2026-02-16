@@ -102,7 +102,7 @@ def build_bedrock_metadata_attributes(metadata: dict[str, Any]) -> dict[str, Any
         "schema": clean_text(metadata.get("schema"), "unknown"),
         "name": clean_text(metadata.get("name"), "unknown"),
         "unique_id": clean_text(metadata.get("unique_id"), "unknown"),
-        "tags": ", ".join(tags),
+        "tags": tags,
         "tag_count": len(tags),
         "upstream_model_count": int(metadata.get("upstream_model_count") or 0),
         "upstream_source_count": int(metadata.get("upstream_source_count") or 0),

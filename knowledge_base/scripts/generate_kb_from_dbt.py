@@ -102,13 +102,14 @@ def build_bedrock_metadata_attributes(metadata: dict[str, Any]) -> dict[str, Any
         "schema": clean_text(metadata.get("schema"), "unknown"),
         "name": clean_text(metadata.get("name"), "unknown"),
         "unique_id": clean_text(metadata.get("unique_id"), "unknown"),
-        "tags": tags,
         "tag_count": len(tags),
         "upstream_model_count": int(metadata.get("upstream_model_count") or 0),
         "upstream_source_count": int(metadata.get("upstream_source_count") or 0),
         "downstream_model_count": int(metadata.get("downstream_model_count") or 0),
         "associated_test_count": int(metadata.get("associated_test_count") or 0),
     }
+    if tags:
+        attrs["tags"] = tags
     for tag in tags:
         attrs[f"tag_{slugify(tag)}"] = True
     return attrs

@@ -1,0 +1,31 @@
+version: 2
+
+sources:
+  - name: raw_onepiece
+    schema: "{{ env_var('DBT_RAW_SCHEMA', 'raw_onepiece') }}"
+    tables:
+      - name: onepiece_characters
+      - name: onepiece_fruits
+      - name: onepiece_sagas
+
+models:
+  - name: onepiece_characters
+    columns:
+      - name: id
+        tests:
+          - not_null
+  - name: onepiece_fruits
+    columns:
+      - name: id
+        tests:
+          - not_null
+  - name: onepiece_sagas
+    columns:
+      - name: id
+        tests:
+          - not_null
+  - name: onepiece_summary
+    columns:
+      - name: character_id
+        tests:
+          - not_null
